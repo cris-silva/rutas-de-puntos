@@ -1,0 +1,72 @@
+---
+title: "Rutas desde puntos"
+format: html
+editor: visual
+---
+
+## Introducción
+
+Crear una ruta definiendo múltiples paradas utilizando el servicio de ruteo de OpenRoutingServices.
+
+## Preparación del entorno
+
+```{r Paquetes utilizados}
+# Cargar los paquetes necesarios
+library(tidyverse)
+library(sf)
+library(janitor)
+library(openrouteservice)
+library(tmap)
+
+# Definir la llave API de OpenRouteService antes de continuar:
+# ors_api_key("<your-api-key>")
+
+# Visualizar los mapas en modo interactivo:
+tmap_mode("view")
+```
+
+## Obtener la ruta
+
+Leer los puntos por donde debe pasar la ruta (paradas), ordenarla por la secuencia y preparar la tabla de coordenadas:
+
+```{r Leer paradas}
+# Leer la capa de puntos de paradas:
+paradas <- 
+  st_read("datos/migrapacifico_1.shp") %>% 
+  arrange(secuencia)
+
+# Obtener la matriz de coordenadas:
+paradas_coordenadas <- 
+  paradas %>% 
+  st_coordinates(geometry)
+```
+
+Obtener la ruta desde el servicio de ORS:
+
+```{r Obtener la ruta desde el API de ORS}
+# Definir el nombre de la ruta:
+nombre_ruta <- "Pacífico"
+
+# Pasar la matriz de coordenadas al API de ORS para obtener la capa de la ruta:
+ruta <- 
+  ors_directions(paradas_coordenadas, output = "sf") %>% 
+  transmute(ruta = nombre_ruta)
+```
+
+Visualizar en un mapa:
+
+```{r Visualizar ruta en un mapa}
+# Visualizar las paradas y la ruta calculada en un mapa:
+tm_shape(ruta) +
+  tm_lines(col = "red",
+           lwd = 2,
+           lty = 3) +
+  tm_shape(paradas) +
+  tm_dots(col = "red")
+```
+
+Guardar la ruta resultante en una capa:
+
+```{r Guardar capa de la ruta obtenida}
+ruta %>% st_write(str_c("rutas/", make_clean_names(nombre_ruta), ".shp"), delete_dsn = TRUE)
+```
